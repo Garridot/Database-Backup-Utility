@@ -1,17 +1,18 @@
 import argparse
 from db_connectors.mysql_connector import MySQLConnector
 from db_connectors.sqlite_connector import SQLiteConnector
+from db_connectors.postgresql_connector import PostgreSQLConnector
 from backup_services.full_backup import FullBackup
 from backup_services.sqlite_backup import SQLiteBackup
-from storage.local_storage import LocalStorage
+from storages.local_storage import LocalStorage
 from utils.compression import compress_file
-from logging.logger import setup_logger, log_info, log_error
+from loggings.logger import setup_logger, log_info, log_error
 
 def main():
     parser = argparse.ArgumentParser(description="Database Backup Utility")
     parser.add_argument("--db-type", required=True, help="Type of database (e.g., mysql, sqlite)")
     parser.add_argument("--host", help="Database host (required for MySQL, PostgreSQL, Mongodb)")
-    parser.add_argument("--port", help="Database port (required for MySQL, PostgreSQL, Mongodb)")
+    parser.add_argument("--port", type=int, help="Database port (required for MySQL, PostgreSQL, Mongodb)")
     parser.add_argument("--user", help="Database user (required for MySQL, PostgreSQL, Mongodb)")
     parser.add_argument("--password", help="Database password (required for MySQL, PostgreSQL, Mongodb)")
     parser.add_argument("--database", help="Database name (required for MySQL, PostgreSQL, Mongodb)")
@@ -23,51 +24,35 @@ def main():
 
     setup_logger(args.log_file)
 
-    if args.db_type == "mysql":
+      
+    if args.db_type == "mysql":        
         connector = MySQLConnector(args.host, args.port, args.user, args.password, args.database)
-        if connector.connect():
-            log_info("Connected to MySQL database")
-            backup = FullBackup(args.db_type, args.database, args.output_dir)
-            backup_file = backup.backup()
-            log_info(f"Backup completed: {backup_file}")
+    elif args.db_type == "sqlite":       
+        connector = SQLiteConnector(args.db_path)    
+    else:
+        log_error(f"Unsupported database type: {args.db_type}")
+        return
 
-            compressed_file = f"{backup_file}.gz"
-            compress_file(backup_file, compressed_file)
-            log_info(f"Backup compressed: {compressed_file}")
+    if connector.connect():
+        log_info(f"Connected to {args.db_type} database")
+        backup = FullBackup(args.db_type, args.database, args.output_dir)
+        backup_file = backup.backup()
+        log_info(f"Backup completed: {backup_file}")
 
-            storage = LocalStorage(args.output_dir)
-            storage.save(compressed_file)
-            log_info(f"Backup saved to local storage: {args.output_dir}")
+        compressed_file = f"{backup_file}.gz"
+        compress_file(backup_file, compressed_file)
+        log_info(f"Backup compressed: {compressed_file}")
 
-            connector.disconnect()
-            log_info("Disconnected from MySQL database")
-        else:
-            log_error("Failed to connect to MySQL database")
+        storage = LocalStorage(args.output_dir)
+        storage.save(compressed_file)
+        log_info(f"Backup saved to local storage: {args.output_dir}")
 
-    elif args.db_type == "sqlite":
-        if not args.db_path:
-            log_error("SQLite database path (--db-path) is required")
-            return
+        connector.disconnect()
+        log_info(f"Disconnected from {args.db_type} database")
+    else:
+        log_error(f"Failed to connect to {args.db_type} database")
 
-        connector = SQLiteConnector(args.db_path)
-        if connector.connect():
-            log_info("Connected to SQLite database")
-            backup = SQLiteBackup(args.db_path, args.output_dir)
-            backup_file = backup.backup()
-            log_info(f"Backup completed: {backup_file}")
-
-            compressed_file = f"{backup_file}.gz"
-            compress_file(backup_file, compressed_file)
-            log_info(f"Backup compressed: {compressed_file}")
-
-            storage = LocalStorage(args.output_dir)
-            storage.save(compressed_file)
-            log_info(f"Backup saved to local storage: {args.output_dir}")
-
-            connector.disconnect()
-            log_info("Disconnected from SQLite database")
-        else:
-            log_error("Failed to connect to SQLite database")
+    
 
 if __name__ == "__main__":
     main()
