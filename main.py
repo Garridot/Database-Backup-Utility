@@ -28,7 +28,9 @@ def main():
     if args.db_type == "mysql":        
         connector = MySQLConnector(args.host, args.port, args.user, args.password, args.database)
     elif args.db_type == "sqlite":       
-        connector = SQLiteConnector(args.db_path)    
+        connector = SQLiteConnector(args.db_path)   
+    elif args.db_type == "postgresql":
+        connector = PostgreSQLConnector(args.host, args.port, args.user, args.password, args.database) 
     else:
         log_error(f"Unsupported database type: {args.db_type}")
         return

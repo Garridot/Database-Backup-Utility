@@ -26,8 +26,14 @@ class FullBackup:
         if self.db_type == "mysql":
             # Use mysqldump to create a backup
             command = f"mysqldump --user={self.db_user} --password={self.db_password} {self.db_name} > {backup_file}"
+        elif self.db_type == "postgresql":
+            # Use pg_dump to create a backup for PostgreSQL
+            command = f"pg_dump --host=localhost --username={self.db_user} --password={self.db_password} --dbname={self.db_name} --file={backup_file}"
+
+        else:
+            raise ValueError(f"Unsupported database type: {self.db_type}")
         try:
             subprocess.run(command, shell=True, check=True)
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to execute mysqldump: {e}")
+            raise RuntimeError(f"Failed to execute: {e}")
         return backup_file
